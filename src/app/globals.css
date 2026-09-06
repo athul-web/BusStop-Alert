@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #FCF9F1;
+  --foreground: #29252F;
+}
+
+body {
+  color: var(--foreground);
+  background-color: var(--background);
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Light Leaflet Map styling */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 1.5rem;
+  background-color: #F4EFE6;
+  font-family: inherit;
+}
+
+.custom-stop-icon,
+.user-location-marker {
+  background: transparent;
+  border: none;
+}
+
+/* Safe area padding for mobile notches and bottom navigation */
+.safe-pb {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+
+.safe-pt {
+  padding-top: env(safe-area-inset-top, 1rem);
+}
