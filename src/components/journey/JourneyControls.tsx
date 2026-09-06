@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { AlertDistanceOption } from '@/types/transit';
+import { AlertDistanceOption, AlertSoundType } from '@/types/transit';
 import { Bell, Volume2, VolumeX, Eye, StopCircle, RefreshCw } from 'lucide-react';
+import AlertPreferences from '@/components/alerts/AlertPreferences';
 
 interface JourneyControlsProps {
   alertRadius: AlertDistanceOption;
@@ -15,6 +16,8 @@ interface JourneyControlsProps {
   onEndJourney: () => void;
   onResetAlert: () => void;
   alertTriggered: boolean;
+  alertSound: AlertSoundType;
+  onSelectAlertSound: (sound: AlertSoundType) => void;
 }
 
 const RADIUS_OPTIONS: AlertDistanceOption[] = [1000, 500, 300, 200, 100];
@@ -30,9 +33,24 @@ export default function JourneyControls({
   onEndJourney,
   onResetAlert,
   alertTriggered,
+  alertSound,
+  onSelectAlertSound,
 }: JourneyControlsProps) {
   return (
     <div className="w-full bg-card rounded-3xl p-5 shadow-warm border border-line flex flex-col gap-4">
+      {/* Alarm Tone Selector — lets the rider change tone while the journey is active.
+          Distance section is hidden here since JourneyControls already has its own
+          distance-threshold picker just below (unchanged). */}
+      <AlertPreferences
+        selectedSound={alertSound}
+        onSelectSound={onSelectAlertSound}
+        selectedDistance={alertRadius}
+        onSelectDistance={onChangeAlertRadius}
+        compact
+        showDistance={false}
+        className="!p-0 !border-0 !shadow-none !bg-transparent"
+      />
+
       {/* Alert Distance Selector */}
       <div>
         <div className="flex items-center justify-between mb-2">
