@@ -12,6 +12,13 @@ interface AlertPreferencesProps {
   onSelectDistance: (distance: AlertDistanceOption) => void;
   className?: string;
   compact?: boolean;
+  /**
+   * Whether to render the built-in "Alert Distance" section. Defaults to
+   * true (unchanged behavior everywhere this component was already used).
+   * Set to false when embedding this component somewhere that already has
+   * its own distance-threshold control, to avoid showing two of them.
+   */
+  showDistance?: boolean;
 }
 
 export const ALERT_SOUND_OPTIONS: { id: AlertSoundType; label: string; desc: string; icon: string }[] = [
@@ -38,6 +45,7 @@ export default function AlertPreferences({
   onSelectDistance,
   className = '',
   compact = false,
+  showDistance = true,
 }: AlertPreferencesProps) {
   const [isPlayingPreview, setIsPlayingPreview] = useState<boolean>(false);
 
@@ -144,36 +152,38 @@ export default function AlertPreferences({
       )}
 
       {/* Alert Distance Selector */}
-      <div className="space-y-1.5 pt-1">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-black uppercase tracking-wider text-secondary">
-            Alert Distance
-          </span>
-          <span className="text-[11px] text-gold-dark font-bold">
-            Alert {selectedDistance >= 1000 ? `${selectedDistance / 1000} km` : `${selectedDistance} m`} before stop
-          </span>
-        </div>
+      {showDistance && (
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black uppercase tracking-wider text-secondary">
+              Alert Distance
+            </span>
+            <span className="text-[11px] text-gold-dark font-bold">
+              Alert {selectedDistance >= 1000 ? `${selectedDistance / 1000} km` : `${selectedDistance} m`} before stop
+            </span>
+          </div>
 
-        <div className="grid grid-cols-5 gap-1.5">
-          {ALERT_DISTANCE_OPTIONS.map((dist) => {
-            const isSelected = selectedDistance === dist.value;
-            return (
-              <button
-                key={dist.value}
-                type="button"
-                onClick={() => onSelectDistance(dist.value)}
-                className={`py-2 rounded-xl text-xs font-black transition-all text-center ${
-                  isSelected
-                    ? 'bg-gold text-white shadow-gold ring-2 ring-gold/30'
-                    : 'bg-subtle text-secondary hover:text-main hover:bg-white border border-line'
-                }`}
-              >
-                {dist.label}
-              </button>
-            );
-          })}
+          <div className="grid grid-cols-5 gap-1.5">
+            {ALERT_DISTANCE_OPTIONS.map((dist) => {
+              const isSelected = selectedDistance === dist.value;
+              return (
+                <button
+                  key={dist.value}
+                  type="button"
+                  onClick={() => onSelectDistance(dist.value)}
+                  className={`py-2 rounded-xl text-xs font-black transition-all text-center ${
+                    isSelected
+                      ? 'bg-gold text-white shadow-gold ring-2 ring-gold/30'
+                      : 'bg-subtle text-secondary hover:text-main hover:bg-white border border-line'
+                  }`}
+                >
+                  {dist.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

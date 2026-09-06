@@ -26,6 +26,12 @@ class AlertManager {
   private countdownIntervalId: ReturnType<typeof setInterval> | null = null;
   private masterTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
+  // Tone currently driving the active alarm loop. Read live by the interval
+  // callback (rather than captured in a closure) so it can be changed
+  // mid-alarm via `setActiveSoundType()`.
+  private activeSoundType: AlertSoundType = 'gentle-chime';
+  private activeStopName: string = '';
+
   private getAudioContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
     if (!this.audioCtx) {
@@ -43,14 +49,22 @@ class AlertManager {
   }
 
   /**
-   * Plays Classic Bell tone
+   * Gain multiplier applied only to the active continuous destination alert,
+   * so repeated in-journey alarms are more noticeable without affecting
+   * normal "Test Alarm" / tap-to-preview volume.
    */
-  public playClassicBell(): void {
+  private static readonly LOUD_ALERT_GAIN_MULTIPLIER = 1.5;
+
+  /**
+   * Plays Classic Bell tone. `loud` boosts gain for the active alert only.
+   */
+  public playClassicBell(loud: boolean = false): void {
     if (this.isMuted) return;
     try {
       const ctx = this.getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;
+      const boost = loud ? AlertManager.LOUD_ALERT_GAIN_MULTIPLIER : 1;
 
       [587.33, 1174.66, 1760.0].forEach((freq, i) => {
         const osc = ctx.createOscillator();
@@ -58,7 +72,7 @@ class AlertManager {
         osc.type = i === 0 ? 'sine' : 'triangle';
         osc.frequency.setValueAtTime(freq, now);
 
-        const initialVol = 0.35 / (i + 1);
+        const initialVol = Math.min(1, (0.35 / (i + 1)) * boost);
         gain.gain.setValueAtTime(initialVol, now);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + (1.2 - i * 0.2));
 
@@ -73,14 +87,15 @@ class AlertManager {
   }
 
   /**
-   * Plays Gentle Chime tone
+   * Plays Gentle Chime tone. `loud` boosts gain for the active alert only.
    */
-  public playGentleChime(): void {
+  public playGentleChime(loud: boolean = false): void {
     if (this.isMuted) return;
     try {
       const ctx = this.getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;
+      const boost = loud ? AlertManager.LOUD_ALERT_GAIN_MULTIPLIER : 1;
 
       const notes = [
         { freq: 523.25, start: now + 0.0, dur: 0.3 },
@@ -95,7 +110,7 @@ class AlertManager {
         osc.frequency.setValueAtTime(freq, start);
 
         gain.gain.setValueAtTime(0.001, start);
-        gain.gain.exponentialRampToValueAtTime(0.28, start + 0.04);
+        gain.gain.exponentialRampToValueAtTime(Math.min(1, 0.28 * boost), start + 0.04);
         gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
 
         osc.connect(gain);
@@ -109,14 +124,15 @@ class AlertManager {
   }
 
   /**
-   * Plays Urgent Alarm tone
+   * Plays Urgent Alarm tone. `loud` boosts gain for the active alert only.
    */
-  public playUrgentAlarm(): void {
+  public playUrgentAlarm(loud: boolean = false): void {
     if (this.isMuted) return;
     try {
       const ctx = this.getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;
+      const boost = loud ? AlertManager.LOUD_ALERT_GAIN_MULTIPLIER : 1;
 
       const beeps = [
         { freq: 1046.5, start: now + 0.0, dur: 0.12 },
@@ -131,7 +147,7 @@ class AlertManager {
         osc.type = 'square';
         osc.frequency.setValueAtTime(freq, start);
 
-        gain.gain.setValueAtTime(0.18, start);
+        gain.gain.setValueAtTime(Math.min(1, 0.18 * boost), start);
         gain.gain.setValueAtTime(0.001, start + dur);
 
         osc.connect(gain);
@@ -145,14 +161,15 @@ class AlertManager {
   }
 
   /**
-   * Plays Attention Alert tone
+   * Plays Attention Alert tone. `loud` boosts gain for the active alert only.
    */
-  public playAttentionAlert(): void {
+  public playAttentionAlert(loud: boolean = false): void {
     if (this.isMuted) return;
     try {
       const ctx = this.getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;
+      const boost = loud ? AlertManager.LOUD_ALERT_GAIN_MULTIPLIER : 1;
 
       [
         { freq: 880.0, start: now, dur: 0.18 },
@@ -164,7 +181,7 @@ class AlertManager {
         osc.frequency.setValueAtTime(freq, start);
 
         gain.gain.setValueAtTime(0.001, start);
-        gain.gain.linearRampToValueAtTime(0.35, start + 0.02);
+        gain.gain.linearRampToValueAtTime(Math.min(1, 0.35 * boost), start + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
 
         osc.connect(gain);
@@ -178,29 +195,31 @@ class AlertManager {
   }
 
   /**
-   * Plays a single sound cycle based on type
+   * Plays a single sound cycle based on type. `loud` boosts gain for the
+   * active continuous alert only — preview calls omit it and stay at
+   * normal volume.
    */
-  public playSingleSound(type: AlertSoundType): void {
+  public playSingleSound(type: AlertSoundType, loud: boolean = false): void {
     switch (type) {
       case 'classic-bell':
-        this.playClassicBell();
+        this.playClassicBell(loud);
         break;
       case 'gentle-chime':
-        this.playGentleChime();
+        this.playGentleChime(loud);
         break;
       case 'urgent-alarm':
-        this.playUrgentAlarm();
+        this.playUrgentAlarm(loud);
         break;
       case 'attention-alert':
-        this.playAttentionAlert();
+        this.playAttentionAlert(loud);
         break;
       case 'voice-announcement':
       case 'vibration-only':
         // Voice is handled at start; gentle chime fills background if unmuted
-        this.playGentleChime();
+        this.playGentleChime(loud);
         break;
       default:
-        this.playGentleChime();
+        this.playGentleChime(loud);
         break;
     }
   }
@@ -343,52 +362,33 @@ class AlertManager {
     } = options;
 
     this.isAlarmActive = true;
+    this.activeSoundType = soundType;
+    this.activeStopName = stopName;
 
     // 1. Show system notification immediately
     this.showSystemNotification(stopName, distanceStr);
 
-    // 2. Play initial voice announcement or initial sound
+    // 2. Play initial voice announcement or initial sound (loud path)
     if (soundType === 'voice-announcement') {
       this.speakAnnouncement(stopName, distanceStr);
     } else if (soundType !== 'vibration-only') {
-      this.playSingleSound(soundType);
+      this.playSingleSound(soundType, true);
     }
 
-    // 3. Initial device vibration
-    this.triggerVibration([400, 200, 400, 200, 600]);
+    // 3. Initial device vibration (strong pattern to grab attention immediately)
+    this.triggerVibration([500, 150, 500, 150, 700]);
 
-    // 4. Set up repeating audio cadence during the 30-second window
-    // Repeat cadence: urgent alarm every 1.2s; other sounds every 1.8s; voice announcement adds chime after 3s
-    const soundIntervalMs =
-      soundType === 'urgent-alarm' ? 1200 : soundType === 'voice-announcement' ? 2400 : 1800;
+    // 4. Set up repeating audio cadence during the alert window.
+    // The loop always reads `this.activeSoundType` live, so calling
+    // `setActiveSoundType()` mid-alarm changes what plays on the very next tick
+    // without needing to restart the alert.
+    this.scheduleSoundLoop(soundType);
 
-    if (soundType !== 'vibration-only') {
-      // For voice announcement, delay first repeated sound so speech has breathing room
-      const initialDelay = soundType === 'voice-announcement' ? 3000 : soundIntervalMs;
-
-      const startLoop = () => {
-        if (!this.isAlarmActive) return;
-        this.alarmIntervalId = setInterval(() => {
-          if (!this.isAlarmActive) return;
-          this.playSingleSound(soundType);
-        }, soundIntervalMs);
-      };
-
-      if (soundType === 'voice-announcement') {
-        setTimeout(startLoop, initialDelay);
-      } else {
-        this.alarmIntervalId = setInterval(() => {
-          if (!this.isAlarmActive) return;
-          this.playSingleSound(soundType);
-        }, soundIntervalMs);
-      }
-    }
-
-    // 5. Set up repeating vibration cadence every 3 seconds
+    // 5. Set up repeating vibration cadence (tightened from 3s -> 2.2s, stronger pulses)
     this.vibrationIntervalId = setInterval(() => {
       if (!this.isAlarmActive) return;
-      this.triggerVibration([400, 200, 400]);
-    }, 3000);
+      this.triggerVibration([500, 150, 500]);
+    }, 2200);
 
     // 6. Countdown tracking
     let remaining = durationSeconds;
@@ -409,6 +409,63 @@ class AlertManager {
       this.stopActiveAlarm();
       onStop?.();
     }, durationSeconds * 1000);
+  }
+
+  /**
+   * (Re)schedules the repeating audio cadence for the active alarm based on
+   * the given tone. Clears any existing loop first, so it is safe to call
+   * again mid-alarm (used by `setActiveSoundType`).
+   * Cadence: urgent alarm every 0.9s; voice announcement chime every 2.2s
+   * (after a delay so speech has room to finish); other tones every 1.4s.
+   * Loud gain path is used throughout (`playSingleSound(type, true)`).
+   */
+  private scheduleSoundLoop(soundType: AlertSoundType): void {
+    if (this.alarmIntervalId) {
+      clearInterval(this.alarmIntervalId);
+      this.alarmIntervalId = null;
+    }
+
+    if (soundType === 'vibration-only') return;
+
+    const soundIntervalMs =
+      soundType === 'urgent-alarm' ? 900 : soundType === 'voice-announcement' ? 2200 : 1400;
+    const initialDelay = soundType === 'voice-announcement' ? 3000 : soundIntervalMs;
+
+    const startLoop = () => {
+      if (!this.isAlarmActive) return;
+      this.alarmIntervalId = setInterval(() => {
+        if (!this.isAlarmActive) return;
+        this.playSingleSound(this.activeSoundType, true);
+      }, soundIntervalMs);
+    };
+
+    if (soundType === 'voice-announcement') {
+      setTimeout(startLoop, initialDelay);
+    } else {
+      startLoop();
+    }
+  }
+
+  /**
+   * Changes the tone used by an in-progress continuous destination alert
+   * (e.g. when the user picks a different tone in the Journey settings
+   * while the alarm is already sounding). Takes effect immediately: if the
+   * new tone has a different repeat cadence than the previous one, the loop
+   * is rescheduled at the new cadence; otherwise the next tick simply plays
+   * the new tone. Has no effect if no alarm is currently active.
+   */
+  public setActiveSoundType(soundType: AlertSoundType): void {
+    if (!this.isAlarmActive) return;
+    if (this.activeSoundType === soundType) return;
+
+    this.activeSoundType = soundType;
+
+    if (soundType === 'voice-announcement') {
+      this.speakAnnouncement(this.activeStopName);
+    }
+
+    // Cadence differs per tone, so restart the loop timer for the new tone.
+    this.scheduleSoundLoop(soundType);
   }
 
   /**

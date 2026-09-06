@@ -54,7 +54,7 @@ function JourneyContent() {
     return 300;
   });
 
-  const [alertSound] = useState<AlertSoundType>(() => {
+  const [alertSound, setAlertSound] = useState<AlertSoundType>(() => {
     const validSounds: AlertSoundType[] = [
       'classic-bell',
       'gentle-chime',
@@ -66,8 +66,31 @@ function JourneyContent() {
     if (soundParam && validSounds.includes(soundParam as AlertSoundType)) {
       return soundParam as AlertSoundType;
     }
+    // Fall back to the rider's last saved preference (set on the stop-selection
+    // screen) before defaulting, so the in-journey selector starts in sync.
+    try {
+      const savedSound = localStorage.getItem('busstop_pref_sound') as AlertSoundType | null;
+      if (savedSound && validSounds.includes(savedSound)) {
+        return savedSound;
+      }
+    } catch {
+      // Safe fallback
+    }
     return 'gentle-chime';
   });
+
+  // Allows changing the alarm tone while the journey (and possibly the alarm
+  // itself) is active. Persists the choice and, if the alarm is currently
+  // sounding, updates it live so the next repeat uses the new tone.
+  const handleSelectAlertSound = (sound: AlertSoundType) => {
+    setAlertSound(sound);
+    try {
+      localStorage.setItem('busstop_pref_sound', sound);
+    } catch {
+      // Safe fallback
+    }
+    alertManager.setActiveSoundType(sound);
+  };
 
   // State flags
   const [alertTriggered, setAlertTriggered] = useState<boolean>(false);
@@ -414,6 +437,8 @@ function JourneyContent() {
         onEndJourney={handleEndJourney}
         onResetAlert={handleResetAlert}
         alertTriggered={alertTriggered}
+        alertSound={alertSound}
+        onSelectAlertSound={handleSelectAlertSound}
       />
 
       {/* Commuter Bus Ride Simulator for testing */}
