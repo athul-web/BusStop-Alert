@@ -44,24 +44,12 @@ export default function LeafletMapCore({
       attributionControl: false,
     });
 
-    // MapTiler Streets v4 raster tiles (replaces the previous OpenStreetMap tile layer).
-    // Key is read from NEXT_PUBLIC_MAPTILER_KEY — never hardcoded.
-    // URL/options follow MapTiler's official Leaflet integration docs for streets-v4
-    // (https://docs.maptiler.com/leaflet/examples/ts-get-started/):
-    // 512px tiles + zoomOffset: -1 keeps the same zoom-level/label scale as the
-    // previous 256px OSM tiles, so existing zoom/pan behavior is unaffected.
-    const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY;
-    L.tileLayer(`https://api.maptiler.com/maps/streets-v4/{z}/{x}/{y}.png?key=${maptilerKey}`, {
-      tileSize: 512,
-      zoomOffset: -1,
-      minZoom: 1,
+    // Clean OpenStreetMap Native Light Tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      crossOrigin: true,
-      attribution:
-        '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
     }).addTo(map);
 
-    L.control.attribution({ position: 'bottomright', prefix: false }).addTo(map);
+    L.control.attribution({ position: 'bottomright', prefix: '© OpenStreetMap' }).addTo(map);
 
     map.on('dragstart', () => {
       setIsFollowingUser(false);
